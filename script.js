@@ -1,19 +1,21 @@
-const GITHUB_REPORTS_FOLDER = "https://api.github.com/repos/krishdograa/my-portfolio/contents/reports";
-const REPORTS_JSON_URL = "https://raw.githubusercontent.com/krishdograa/my-portfolio/main/reports.json";
+const GITHUB_REPORTS_FOLDER = "https://api.github.com/repos/uliya-ashfaque/Get-to-know-Uliya/contents/reports";
+const REPORTS_JSON_URL = "https://raw.githubusercontent.com/uliya-ashfaque/Get-to-know-Uliya/main/reports.json";
 
 async function fetchReports() {
     const reportsContainer = document.getElementById("reports");
     reportsContainer.innerHTML = "<p>Loading reports...</p>";
 
     try {
-        // Fetch data
+        // Fetch GitHub API data with proper headers
         const [filesRes, jsonRes] = await Promise.all([
-            fetch(GITHUB_REPORTS_FOLDER),
+            fetch(GITHUB_REPORTS_FOLDER, {
+                headers: { Accept: "application/vnd.github.v3+json" }
+            }),
             fetch(REPORTS_JSON_URL)
         ]);
 
-        if (!filesRes.ok || !jsonRes.ok) throw new Error("Data fetch failed");
-        
+        if (!filesRes.ok || !jsonRes.ok) throw new Error("Failed to fetch data");
+
         const [filesData, jsonData] = await Promise.all([
             filesRes.json(),
             jsonRes.json()
@@ -21,102 +23,44 @@ async function fetchReports() {
 
         reportsContainer.innerHTML = "";
 
+        if (!Array.isArray(filesData) || !Array.isArray(jsonData)) {
+            throw new Error("Invalid JSON structure");
+        }
+
         // Process files
         for (const file of filesData) {
-            const reportInfo = jsonData.find(item => item.name === file.name);
-            if (!reportInfo) continue;
+            if (!file.download_url) continue; // Skip files with no valid download URL
 
+            const reportInfo = jsonData.find(item => item.name === file.name);
             const reportDiv = document.createElement("div");
             reportDiv.className = "report-item";
 
             reportDiv.innerHTML = `
-                ${reportInfo.image ? `
+                ${reportInfo?.image ? `
                     <img src="${reportInfo.image}" 
                          alt="${file.name}" 
                          class="report-image"
-                         "> <!-- Remove if image fails to load -->
+                         onerror="this.style.display='none'"> <!-- Hide if image fails -->
                 ` : ''}
                 <a href="${file.download_url}" 
                    target="_blank" 
                    class="report-link">
                     ${file.name}
                 </a>
-                ${reportInfo.comment ? `<p class="report-comment">${reportInfo.comment}</p>` : ''}
+                ${reportInfo?.comment ? `<p class="report-comment">${reportInfo.comment}</p>` : ''}
             `;
 
             reportsContainer.appendChild(reportDiv);
         }
 
     } catch (error) {
-        console.error("Error:", error);
+        console.error("Error fetching reports:", error);
         reportsContainer.innerHTML = `<p class="error">Failed to load reports: ${error.message}</p>`;
     }
 }
 
 // Call function on page load
-fetchReports();
-
-
-// Smooth scrolling and active section highlighting
-document.addEventListener("scroll", function () {
-    let sections = document.querySelectorAll("section");
-    let navLinks = document.querySelectorAll(".nav-link");
-
-    sections.forEach((section) => {
-        let top = window.scrollY;
-        let offset = section.offsetTop - 150;
-        let height = section.offsetHeight;
-        let id = section.getAttribute("id");
-
-        if (top >= offset && top < offset + height) {
-            navLinks.forEach((link) => {
-                link.classList.remove("active");
-                document
-                    .querySelector("nav ul li a[href*=" + id + "]")
-                    .classList.add("active");
-            });
-        }
-    });
-});
-
-// Section Fade-in Effect
-function revealSections() {
-    let sections = document.querySelectorAll("section");
-    sections.forEach((section) => {
-        let position = section.getBoundingClientRect().top;
-        let windowHeight = window.innerHeight;
-
-        if (position < windowHeight - 50) {
-            section.classList.add("show");
-        }
-    });
-}
-
-window.addEventListener("scroll", revealSections);
-window.addEventListener("load", revealSections);
-
-// Save Daily Log to localStorage
-function saveLog() {
-    let input = document.getElementById("daily-input").value;
-    if (input) {
-        let list = document.getElementById("log-list");
-        let li = document.createElement("li");
-        li.textContent = input;
-        li.classList.add("log-item");
-
-        list.appendChild(li);
-        document.getElementById("daily-input").value = "";
-
-        // Save to Local Storage
-        let logs = JSON.parse(localStorage.getItem("dailyLogs")) || [];
-        logs.push(input);
-        localStorage.setItem("dailyLogs", JSON.stringify(logs));
-    }
-}
-
-// Load Logs on Page Load
-window.onload = function () {
-    fetchReports();
+window.addEventListener("load", fetchReports);
     
     let logs = JSON.parse(localStorage.getItem("dailyLogs")) || [];
     let list = document.getElementById("log-list");
@@ -127,7 +71,7 @@ window.onload = function () {
         li.classList.add("log-item");
         list.appendChild(li);
     });
-};
+
 
 // Fetch Reports from Backend API (Flask API running on localhost)
 window.onload = function () {
