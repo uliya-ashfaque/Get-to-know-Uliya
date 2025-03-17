@@ -1,41 +1,61 @@
-// GitHub API to fetch reports
-const githubRepo = "https://api.github.com/repos/krishdograa/my-portfolio/contents/reports";
+const GITHUB_REPORTS_FOLDER = "https://api.github.com/repos/krishdograa/my-portfolio/contents/reports";
+const REPORTS_JSON_URL = "https://raw.githubusercontent.com/krishdograa/my-portfolio/main/reports.json";
 
 async function fetchReports() {
-    let reportsContainer = document.getElementById("reports");
+    const reportsContainer = document.getElementById("reports");
     reportsContainer.innerHTML = "<p>Loading reports...</p>";
 
     try {
-        let response = await fetch(githubRepo);
-        if (!response.ok) throw new Error("Failed to fetch reports");
+        // Fetch data
+        const [filesRes, jsonRes] = await Promise.all([
+            fetch(GITHUB_REPORTS_FOLDER),
+            fetch(REPORTS_JSON_URL)
+        ]);
 
-        let data = await response.json();
-        reportsContainer.innerHTML = ""; // Clear previous content
+        if (!filesRes.ok || !jsonRes.ok) throw new Error("Data fetch failed");
+        
+        const [filesData, jsonData] = await Promise.all([
+            filesRes.json(),
+            jsonRes.json()
+        ]);
 
-        if (data.length === 0) {
-            reportsContainer.innerHTML = "<p>No reports available.</p>";
-            return;
+        reportsContainer.innerHTML = "";
+
+        // Process files
+        for (const file of filesData) {
+            const reportInfo = jsonData.find(item => item.name === file.name);
+            if (!reportInfo) continue;
+
+            const reportDiv = document.createElement("div");
+            reportDiv.className = "report-item";
+
+            reportDiv.innerHTML = `
+                ${reportInfo.image ? `
+                    <img src="${reportInfo.image}" 
+                         alt="${file.name}" 
+                         class="report-image"
+                         "> <!-- Remove if image fails to load -->
+                ` : ''}
+                <a href="${file.download_url}" 
+                   target="_blank" 
+                   class="report-link">
+                    ${file.name}
+                </a>
+                ${reportInfo.comment ? `<p class="report-comment">${reportInfo.comment}</p>` : ''}
+            `;
+
+            reportsContainer.appendChild(reportDiv);
         }
 
-        data.forEach((file) => {
-            let reportDiv = document.createElement("div");
-            reportDiv.classList.add("report-item");
-
-            let reportLink = document.createElement("a");
-            reportLink.href = file.download_url;
-            reportLink.innerText = file.name;
-            reportLink.target = "_blank";
-
-            reportDiv.appendChild(reportLink);
-            reportsContainer.appendChild(reportDiv);
-        });
     } catch (error) {
-        console.error("Error loading reports:", error);
-        reportsContainer.innerHTML = "<p>Error fetching reports.</p>";
+        console.error("Error:", error);
+        reportsContainer.innerHTML = `<p class="error">Failed to load reports: ${error.message}</p>`;
     }
 }
 
-fetchReports(); // Call function on page load
+// Call function on page load
+fetchReports();
+
 
 // Smooth scrolling and active section highlighting
 document.addEventListener("scroll", function () {
@@ -176,3 +196,26 @@ dodocument.addEventListener("scroll", function () {
 window.addEventListener("scroll", revealSections);
 window.addEventListener("load", revealSections);
 
+
+
+function scrollToAbout(event) {
+        event.preventDefault(); // Prevent default jump
+        let aboutSection = document.getElementById("about");
+        let offset = 75; // Adjust this value between 50-100 pixels
+
+        if (aboutSection) {
+            let targetPosition = aboutSection.offsetTop - offset;
+            window.scrollTo({ top: targetPosition, behavior: "smooth" });
+        }
+    }
+
+function smoothScroll(event, sectionId) {
+        event.preventDefault(); // Prevent default anchor behavior
+        let targetSection = document.getElementById(sectionId);
+        let offset = 75; // Adjust between 50-100 pixels
+
+        if (targetSection) {
+            let targetPosition = targetSection.offsetTop - offset;
+            window.scrollTo({ top: targetPosition, behavior: "smooth" });
+        }
+    }
